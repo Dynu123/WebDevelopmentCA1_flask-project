@@ -42,8 +42,8 @@ def createUser():
     check_user = UserTable.query.filter_by(email=input['email']).first()
     if check_user:
         return make_response({'result': {'data': {},
-                                     'message': 'User already exists',
-                                     'code': '400'}
+                                         'message': 'User already exists',
+                                         'code': '400'}
                           }, 
                          200)
     hashed_password = generate_password_hash(input['password'], method='sha256')
@@ -82,8 +82,8 @@ def login():
                           }, 
                          200)
             return make_response({'result': {'data': {},
-                                         'message': 'Incorrect password',
-                                         'code': '400'}
+                                             'message': 'Incorrect password',
+                                             'code': '400'}
                           }, 
                          200)
         return make_response({'result': {'data': {},
@@ -92,8 +92,8 @@ def login():
                           }, 
                          400)
     return make_response({'result': {'data': {},
-                                         'message': 'Username or password cannot be empty',
-                                         'code': '400'}
+                                     'message': 'Username or password cannot be empty',
+                                     'code': '400'}
                           }, 
                          400)
         
