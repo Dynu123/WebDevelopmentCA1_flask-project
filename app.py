@@ -7,10 +7,12 @@ import jwt
 import datetime
 import requests #for calling external api
 from functools import wraps # for token authentication
+from flask_cors import CORS
 
 app = Flask(__name__)
-
+CORS(app)
 #app configurations
+
 app.config['SECRET_KEY'] = 'thisisimportant'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://b5b7e9d2945fc0:f06fdd58@us-cdbr-east-05.cleardb.net/heroku_744c5b8a948159b"
