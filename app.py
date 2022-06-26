@@ -5,6 +5,8 @@ import pymysql
 from werkzeug.security import check_password_hash, generate_password_hash
 import jwt
 import datetime
+import requests #for calling external api
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -34,6 +36,25 @@ class UserTable(db.Model):
     
 db.create_all()
     
+    
+#User Authorization    
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization']
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = UserTable.query.filter_by(public_id=data['public_id']).first()
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
 
 #user registation
 @app.route('/signup', methods=['POST'])
@@ -97,8 +118,48 @@ def login():
                           }, 
                          400)
         
-        
-
+#Get products list
+@app.route('/products')
+@token_required
+def getAllProducts(current_user): 
+    result = requests.get('http://makeup-api.herokuapp.com/api/v1/products.json')
+    return make_response({'result': {'data': result.json(),
+                                     'message': '',
+                                     'code': '200'}
+                          }, 
+                         200)
+    
+#Get product by Id
+@app.route('/products/<product_id>')
+@token_required
+def getProductById(current_user, product_id):
+    url = 'http://makeup-api.herokuapp.com/api/v1/products/{}.json'.format(product_id)
+    result = requests.get(url)
+    return make_response({'result': {'data': result.json(),
+                                     'message': '',
+                                     'code': '200'}
+                          }, 
+                         200)
+    
+#Search product by category/value
+@app.route('/products/<search_category>/<value>')
+@token_required
+def getProductByType(current_user, search_category, value):
+    url = 'http://makeup-api.herokuapp.com/api/v1/products.json?{}={}'.format(search_category, value)
+    result = requests.get(url)
+    json = result.json()
+    if result.ok:
+        return make_response({'result': {'data': json,
+                                        'message': 'success',
+                                        'code': result.status_code}
+                            }, result.status_code)
+    
+    return make_response({'result': {'data': json,
+                                        'message': 'failed',
+                                        'code': result.status_code}
+                            }, result.status_code)
+    
+    
 
 if __name__ == "__main__":
     app.run(debug=True)
