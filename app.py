@@ -8,9 +8,14 @@ import datetime
 import requests #for calling external api
 from functools import wraps # for token authentication
 from flask_cors import CORS
+import logging
+
+
 
 app = Flask(__name__)
 CORS(app)
+app.logger.addHandler(logging.StreamHandler(sys.stdout))
+app.logger.setLevel(logging.ERROR)
 #app configurations
 
 app.config['SECRET_KEY'] = 'thisisimportant'
