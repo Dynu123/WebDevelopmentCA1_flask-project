@@ -93,6 +93,11 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorated
 
+#Welcome screen
+@app.route('/')
+def index():
+    return "Welcome to FinManager API"
+
 #user registation
 @app.route('/signup', methods=['POST'])
 def createUser():
