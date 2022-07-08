@@ -170,6 +170,41 @@ def login():
                          400)
     
     
+#user profile update
+@app.route('/user/update', methods=['PUT'])
+@token_required
+def updateProfile(current_user):
+    input = request.get_json()
+    
+    get_user = UserTable.query.filter_by(id=input['id']).first()
+    if get_user:
+        get_user.name = input['name']
+        get_user.phone = input['phone']
+        
+        try:
+            db.session.commit()
+            db.session.refresh(get_user)
+            userSchema = UserSchema()
+            result = userSchema.dump(get_user)
+            return make_response({'result': {'data': input,
+                                        'message': 'User details updated successfully!',
+                                        'code': '200'}
+                            }, 
+                            200)
+        except Exception as e:
+            return make_response({'result': {'data': {},
+                                        'message': e,
+                                        'code': '400'}
+                            }, 
+                            400)
+    else :
+         return make_response({'result': {'data': {},
+                                         'message': 'No user found',
+                                         'code': '400'}
+                               }, 
+                              200)
+        
+    
 #Add transaction
 @app.route('/transactions/add', methods=['POST'])
 @token_required
