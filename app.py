@@ -19,7 +19,7 @@ CORS(app=app)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
 #app configurations
-
+app.config['WTF_CSRF_ENABLED'] = True
 app.config['SECRET_KEY'] = 'thisisimportant'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://b5b7e9d2945fc0:f06fdd58@us-cdbr-east-05.cleardb.net/heroku_744c5b8a948159b"
