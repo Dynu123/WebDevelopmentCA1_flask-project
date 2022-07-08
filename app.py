@@ -24,7 +24,7 @@ app.config['SECRET_KEY'] = 'thisisimportant'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://b5b7e9d2945fc0:f06fdd58@us-cdbr-east-05.cleardb.net/heroku_744c5b8a948159b"
 pymysql.install_as_MySQLdb()
-db = SQLAlchemy(app)
+db = SQLAlchemy(app) 
 ma = Marshmallow(app)
 
 
@@ -36,14 +36,17 @@ class UserTable(db.Model):
     email = db.Column(db.String(255), unique=True)
     phone = db.Column(db.String(255), unique=True)
     password=db.Column(db.String(255))
+    # one-to-many collection
     
-    def __init__(self, public_id, name, email, phone, password):
-        self.public_id = public_id
-        self.name = name
-        self.email = email
-        self.phone = phone
-        self.password = password
-        
+    transactions = db.relationship("TransactionTable", backref="user")
+
+    #def __init__(self, public_id, name, email, phone, password):
+        #self.public_id = public_id
+        #self.name = name
+        #self.email = email
+        #self.phone = phone
+        #self.password = password
+
 #Transaction table
 class TransactionTable(db.Model):
     transaction_id = db.Column(db.Integer, primary_key=True)
@@ -52,17 +55,17 @@ class TransactionTable(db.Model):
     type = db.Column(db.String(255))
     date = db.Column(db.String(255))
     note = db.Column(db.String(255))
-    user_id = db.Column(db.Integer) #db.ForeignKey('UserTable.id'))
-    #user = db.relationship('UserTable', backref='transactions')
+    user_id = db.Column(db.Integer, db.ForeignKey("user_table.id"))
     
-    def __init__(self, title, amount, type, date, note, user_id):
-        self.title = title
-        self.amount = amount
-        self.type = type
-        self.date = date
-        self.note = note
-        self.user_id = user_id 
-    
+
+    #def __init__(self, title, amount, type, date, note, user_id):
+        #self.title = title
+       # self.amount = amount
+        #self.type = type
+        #self.date = date
+        #self.note = note
+        #self.user_id = user_id 
+
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = UserTable
@@ -110,11 +113,11 @@ def createUser():
                           }, 
                          200)
     hashed_password = generate_password_hash(input['password'], method='sha256')
-    new_user = UserTable(str(uuid.uuid4()), 
-                         input['name'], 
-                         input['email'], 
-                         input['phone'], 
-                         hashed_password)
+    new_user = UserTable(public_id=str(uuid.uuid4()), 
+                         name=input['name'], 
+                         email=input['email'], 
+                         phone=input['phone'], 
+                         password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
     
@@ -172,18 +175,20 @@ def login():
 @token_required
 def addNewTransaction(current_user):
     input = request.get_json()
-    new_transaction = TransactionTable(input['title'], 
-                                       input['amount'], 
-                                       input['type'], 
-                                       input['date'], 
-                                       input['note'], 
-                                       input['user_id'])
+    user = current_user.id
+    new_transaction = TransactionTable(title=input['title'], 
+                                       amount=input['amount'], 
+                                       type=input['type'], 
+                                       date=input['date'], 
+                                       note=input['note'], 
+                                       user_id= user)
     db.session.add(new_transaction)
     
     try:
         db.session.commit()
         db.session.refresh(new_transaction)
         input["transaction_id"] = new_transaction.transaction_id
+        input['user_id'] = user
         return make_response({'result': {'data': input,
                                      'message': 'Transaction added successfully!',
                                      'code': '200'}
@@ -201,36 +206,42 @@ def addNewTransaction(current_user):
 @token_required
 def updateTransactionById(current_user):
     input = request.get_json()
-    get_transaction = TransactionTable.query.filter_by(transaction_id=input['transaction_id']).first()
+    get_transaction = TransactionTable.query.filter_by(transaction_id=input['transaction_id'], user_id=current_user.id).first()
     if get_transaction:
         get_transaction.title = input['title']
         get_transaction.amount = input['amount']
         get_transaction.type = input['type']
         get_transaction.date = input['date']
         get_transaction.note = input['note']
-    try:
-        db.session.commit()
-        db.session.refresh(get_transaction)
-        transactionSchema = TransactionSchema()
-        result = transactionSchema.dump(get_transaction)
-        return make_response({'result': {'data': result,
-                                     'message': 'Transaction updated successfully!',
-                                     'code': '200'}
-                          }, 
-                         200)
-    except Exception as e:
-        return make_response({'result': {'data': {},
-                                     'message': 'SQL exception',
-                                     'code': '400'}
-                          }, 
-                         400)
+        try:
+            db.session.commit()
+            db.session.refresh(get_transaction)
+            transactionSchema = TransactionSchema()
+            result = transactionSchema.dump(get_transaction)
+            return make_response({'result': {'data': result,
+                                        'message': 'Transaction updated successfully!',
+                                        'code': '200'}
+                            }, 
+                            200)
+        except Exception as e:
+            return make_response({'result': {'data': {},
+                                        'message': 'SQL exception',
+                                        'code': '400'}
+                            }, 
+                            400)
+    else :
+         return make_response({'result': {'data': {},
+                                         'message': 'No transactions found',
+                                         'code': '400'}
+                               }, 
+                              200)
         
 #Get transactions list
 @app.route('/transactions')
 @token_required
 def getAllTransactions(current_user): 
     try:
-        get_transactions = TransactionTable.query.all()
+        get_transactions = TransactionTable.query.filter_by(user_id=current_user.id)
         #if get_transactions:
         transactionSchema = TransactionSchema(many=True)
         result = transactionSchema.dump(get_transactions)
@@ -251,7 +262,7 @@ def getAllTransactions(current_user):
 @token_required
 def getTransactionById(current_user, tId): 
     try:
-        get_transaction = TransactionTable.query.filter_by(transaction_id=tId).first()
+        get_transaction = TransactionTable.query.filter_by(transaction_id=tId, user_id=current_user.id).first()
         transactionSchema = TransactionSchema()
         result = transactionSchema.dump(get_transaction)
         if get_transaction:
@@ -277,7 +288,7 @@ def getTransactionById(current_user, tId):
 @token_required
 def deleteTransactionById(current_user, tId): 
     try:
-        get_transaction = TransactionTable.query.filter_by(transaction_id=tId).first()
+        get_transaction = TransactionTable.query.filter_by(transaction_id=tId, user_id=current_user.id).first()
         transactionSchema = TransactionSchema()
         result = transactionSchema.dump(get_transaction)
         if get_transaction:
