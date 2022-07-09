@@ -280,9 +280,29 @@ def updateTransactionById():
 @app.route('/transactions')
 @jwt_required()
 def getAllTransactions(): 
-    #return jsonify({'result': current_user})
     try:
         get_transactions = TransactionTable.query.filter_by(user_id=current_user.id).all()
+        #if get_transactions:
+        transactionSchema = TransactionSchema(many=True)
+        result = transactionSchema.dump(get_transactions)
+        return make_response({'result': {'data': result,
+                                        'message': 'success',
+                                        'code': 200}
+                                }, 
+                             200)
+    except Exception as e:
+        return make_response({'error': {'error': e.__str__(),
+                                        'error_message': 'failure',
+                                        'error_code': "400"}
+                              }, 
+                             400)
+        
+#Get INCOME transactions list
+@app.route('/transactions/<type>')
+@jwt_required()
+def getTransactionByType(type): 
+    try:
+        get_transactions = TransactionTable.query.filter_by(type=type).all()
         #if get_transactions:
         transactionSchema = TransactionSchema(many=True)
         result = transactionSchema.dump(get_transactions)
