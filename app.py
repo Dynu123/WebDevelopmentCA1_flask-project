@@ -302,7 +302,7 @@ def getAllTransactions():
 @jwt_required()
 def getTransactionByType(type): 
     try:
-        get_transactions = TransactionTable.query.filter_by(type=type).all()
+        get_transactions = TransactionTable.query.filter_by(user_id=current_user.id, type=type).all()
         #if get_transactions:
         transactionSchema = TransactionSchema(many=True)
         result = transactionSchema.dump(get_transactions)
