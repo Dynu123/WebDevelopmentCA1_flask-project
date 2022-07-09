@@ -13,6 +13,8 @@ from flask_cors import CORS, cross_origin
 import logging
 import sys
 
+from flask_jwt_extended import (create_access_token, create_refresh_token, get_jwt_identity, jwt_required, JWTManager,  current_user,)
+
 
 app = Flask(__name__)
 CORS(app=app)
@@ -21,6 +23,11 @@ app.logger.setLevel(logging.ERROR)
 #app configurations
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['SECRET_KEY'] = 'thisisimportant'
+
+# Setup the Flask-JWT-Extended extension
+app.config["JWT_SECRET_KEY"] = "webCA1anditshouldbetopsecretcodethatcannotbeguessed"  # Change this!
+jwt = JWTManager(app)
+#
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://b5b7e9d2945fc0:f06fdd58@us-cdbr-east-05.cleardb.net/heroku_744c5b8a948159b"
 pymysql.install_as_MySQLdb()
@@ -40,13 +47,6 @@ class UserTable(db.Model):
     
     transactions = db.relationship("TransactionTable", backref="user")
 
-    #def __init__(self, public_id, name, email, phone, password):
-        #self.public_id = public_id
-        #self.name = name
-        #self.email = email
-        #self.phone = phone
-        #self.password = password
-
 #Transaction table
 class TransactionTable(db.Model):
     transaction_id = db.Column(db.Integer, primary_key=True)
@@ -56,15 +56,6 @@ class TransactionTable(db.Model):
     date = db.Column(db.String(255))
     note = db.Column(db.String(255))
     user_id = db.Column(db.Integer, db.ForeignKey("user_table.id"))
-    
-
-    #def __init__(self, title, amount, type, date, note, user_id):
-        #self.title = title
-       # self.amount = amount
-        #self.type = type
-        #self.date = date
-        #self.note = note
-        #self.user_id = user_id 
 
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -129,6 +120,16 @@ def createUser():
                           }, 
                          200)
     
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return user.id
+
+
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data["sub"]
+    return UserTable.query.filter_by(id=identity).one_or_none()
+
 
 #user login
 @app.route('/login', methods=['POST'])
@@ -137,17 +138,21 @@ def login():
     password = request.form.get('password')
     
     if email and password:
-        get_user = UserTable.query.filter_by(email=email).first()
+        get_user = UserTable.query.filter_by(email=email).one_or_none()
         if get_user:
             if check_password_hash(get_user.password, password):
-                token = jwt.encode({'public_id':get_user.public_id,
-                                    'exp': datetime.datetime.utcnow()+datetime.timedelta(days=30)}, 
-                                   app.config['SECRET_KEY'])
+                token = create_access_token(identity=get_user)
+                refresh_token = create_refresh_token(identity=get_user, expires_delta=False)
+                #token = jwt.encode({'public_id':get_user.public_id,
+                                   # 'exp': datetime.datetime.utcnow()+datetime.timedelta(days=30)}, 
+                                   #app.config['SECRET_KEY'])
                 
                 return make_response({'result': {'data': {'name': get_user.name,
                                                           'email': get_user.email,
                                                           'phone': get_user.phone,
+                                                          #'token': token,
                                                           'token': token,
+                                                          'refresh_token': refresh_token,
                                                           'id': get_user.id},
                                                  'message': 'User logged in successfully!',
                                                  'code': '200'}
@@ -172,8 +177,8 @@ def login():
     
 #user profile update
 @app.route('/user/update', methods=['PUT'])
-@token_required
-def updateProfile(current_user):
+@jwt_required()
+def updateProfile():
     input = request.get_json()
     
     get_user = UserTable.query.filter_by(id=input['id']).first()
@@ -207,8 +212,8 @@ def updateProfile(current_user):
     
 #Add transaction
 @app.route('/transactions/add', methods=['POST'])
-@token_required
-def addNewTransaction(current_user):
+@jwt_required()
+def addNewTransaction():
     input = request.get_json()
     user = current_user.id
     new_transaction = TransactionTable(title=input['title'], 
@@ -238,8 +243,8 @@ def addNewTransaction(current_user):
         
 #Update transaction
 @app.route('/transactions/update', methods=['PUT'])
-@token_required
-def updateTransactionById(current_user):
+@jwt_required()
+def updateTransactionById():
     input = request.get_json()
     get_transaction = TransactionTable.query.filter_by(transaction_id=input['transaction_id'], user_id=current_user.id).first()
     if get_transaction:
@@ -273,10 +278,11 @@ def updateTransactionById(current_user):
         
 #Get transactions list
 @app.route('/transactions')
-@token_required
-def getAllTransactions(current_user): 
+@jwt_required()
+def getAllTransactions(): 
+    #return jsonify({'result': current_user})
     try:
-        get_transactions = TransactionTable.query.filter_by(user_id=current_user.id)
+        get_transactions = TransactionTable.query.filter_by(user_id=current_user.id).all()
         #if get_transactions:
         transactionSchema = TransactionSchema(many=True)
         result = transactionSchema.dump(get_transactions)
@@ -294,8 +300,8 @@ def getAllTransactions(current_user):
 
 #Get transaction by id
 @app.route('/transactions/<tId>')
-@token_required
-def getTransactionById(current_user, tId): 
+@jwt_required()
+def getTransactionById(tId): 
     try:
         get_transaction = TransactionTable.query.filter_by(transaction_id=tId, user_id=current_user.id).first()
         transactionSchema = TransactionSchema()
@@ -320,8 +326,8 @@ def getTransactionById(current_user, tId):
 
 #Delete transaction by id
 @app.route('/transactions/delete/<tId>', methods=['DELETE'])
-@token_required
-def deleteTransactionById(current_user, tId): 
+@jwt_required()
+def deleteTransactionById(tId): 
     try:
         get_transaction = TransactionTable.query.filter_by(transaction_id=tId, user_id=current_user.id).first()
         transactionSchema = TransactionSchema()
@@ -402,8 +408,12 @@ def getProductByType(current_user, search_category, value):
         
     
 
-    
-    
+@app.route("/test", methods=["GET"])
+@jwt_required()
+def test():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
     
     
     
