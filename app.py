@@ -94,6 +94,7 @@ def index():
 
 #user registation
 @app.route('/signup', methods=['POST'])
+
 def createUser():
     input = request.get_json()
     check_user = UserTable.query.filter_by(email=input['email']).first()
@@ -133,6 +134,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
 
 #user login
 @app.route('/login', methods=['POST'])
+
 def login():
     email = request.form.get('email')
     password = request.form.get('password')
@@ -177,6 +179,7 @@ def login():
     
 #user profile update
 @app.route('/user/update', methods=['PUT'])
+
 @jwt_required()
 def updateProfile():
     input = request.get_json()
@@ -212,6 +215,7 @@ def updateProfile():
     
 #Add transaction
 @app.route('/transactions/add', methods=['POST'])
+
 @jwt_required()
 def addNewTransaction():
     input = request.get_json()
@@ -243,6 +247,7 @@ def addNewTransaction():
         
 #Update transaction
 @app.route('/transactions/update', methods=['PUT'])
+
 @jwt_required()
 def updateTransactionById():
     input = request.get_json()
@@ -278,6 +283,7 @@ def updateTransactionById():
         
 #Get transactions list
 @app.route('/transactions')
+
 @jwt_required()
 def getAllTransactions(): 
     try:
@@ -297,8 +303,9 @@ def getAllTransactions():
                               }, 
                              400)
         
-#Get INCOME transactions list
+#Get type transactions list
 @app.route('/transactions/<type>')
+
 @jwt_required()
 def getTransactionByType(type): 
     try:
@@ -346,6 +353,7 @@ def getTransactionById(tId):
 
 #Delete transaction by id
 @app.route('/transactions/delete/<tId>', methods=['DELETE'])
+
 @jwt_required()
 def deleteTransactionById(tId): 
     try:
@@ -410,6 +418,7 @@ def getProductById(current_user, product_id):
     
 #Search product by category/value
 @app.route('/products/<search_category>/<value>')
+
 @token_required
 def getProductByType(current_user, search_category, value):
     url = 'http://makeup-api.herokuapp.com/api/v1/products.json?{}={}'.format(search_category, value)
