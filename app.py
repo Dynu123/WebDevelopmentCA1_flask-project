@@ -111,15 +111,25 @@ def createUser():
                          phone=input['phone'], 
                          password=hashed_password)
     db.session.add(new_user)
-    db.session.commit()
-    
-    return make_response({'result': {'data': {'name': new_user.name,
+    try:
+        db.session.commit()
+        return make_response({'result': {'data': {'name': new_user.name,
                                               'email': new_user.email,
                                               'phone': new_user.phone},
                                      'message': 'User created successfully!',
                                      'code': '200'}
                           }, 
                          200)
+    except Exception as e:
+        db.session.rollback()
+        return make_response({'result': {'data': {},
+                                     'message': e.__str__(),
+                                     'code': '200'}
+                          }, 
+                         400)
+        
+    
+    
     
 @jwt.user_identity_loader
 def user_identity_lookup(user):
