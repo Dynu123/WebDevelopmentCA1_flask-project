@@ -12,7 +12,6 @@ from functools import wraps # for token authentication
 from flask_cors import CORS, cross_origin
 import logging
 import sys
-
 from flask_jwt_extended import (create_access_token, create_refresh_token, get_jwt_identity, jwt_required, JWTManager,  current_user,)
 
 
@@ -101,6 +100,13 @@ def createUser():
     if check_user:
         return make_response({'result': {'data': {},
                                          'message': 'User {} already exists! Please try log in.'.format(check_user.email),
+                                         'code': '400'}
+                          }, 
+                         200)
+    check_if_phone_exists = UserTable.query.filter_by(phone=input['phone']).first()
+    if check_if_phone_exists:
+        return make_response({'result': {'data': {},
+                                         'message': 'Phone number {} already exists!'.format(check_if_phone_exists.phone),
                                          'code': '400'}
                           }, 
                          200)
@@ -210,8 +216,9 @@ def updateProfile():
                             }, 
                             200)
         except Exception as e:
+            db.session.rollback()
             return make_response({'result': {'data': {},
-                                        'message': e,
+                                        'message': e.__str__(),
                                         'code': '400'}
                             }, 
                             400)
@@ -249,8 +256,9 @@ def addNewTransaction():
                           }, 
                          200)
     except Exception as e:
+        db.session.rollback()
         return make_response({'result': {'data': {},
-                                     'message': 'SQL exception',
+                                     'message': e.__str__(),
                                      'code': '400'}
                           }, 
                          400)
@@ -279,8 +287,9 @@ def updateTransactionById():
                             }, 
                             200)
         except Exception as e:
+            db.session.rollback()
             return make_response({'result': {'data': {},
-                                        'message': 'SQL exception',
+                                        'message': e.__str__(),
                                         'code': '400'}
                             }, 
                             400)
@@ -293,7 +302,6 @@ def updateTransactionById():
         
 #Get transactions list
 @app.route('/transactions')
-
 @jwt_required()
 def getAllTransactions(): 
     try:
@@ -307,11 +315,12 @@ def getAllTransactions():
                                 }, 
                              200)
     except Exception as e:
-        return make_response({'error': {'error': e.__str__(),
-                                        'error_message': 'failure',
-                                        'error_code': "400"}
-                              }, 
-                             400)
+        db.session.rollback()
+        return make_response({'result': {'data': {},
+                                        'message': e.__str__(),
+                                        'code': '400'}
+                            }, 
+                            400)
         
 #Get type transactions list
 @app.route('/transactions/<type>')
@@ -329,11 +338,12 @@ def getTransactionByType(type):
                                 }, 
                              200)
     except Exception as e:
-        return make_response({'error': {'error': e.__str__(),
-                                        'error_message': 'failure',
-                                        'error_code': "400"}
-                              }, 
-                             400)
+        db.session.rollback()
+        return make_response({'result': {'data': {},
+                                        'message': e.__str__(),
+                                        'code': '400'}
+                            }, 
+                            400)
 
 #Get transaction by id
 @app.route('/transactions/<tId>')
@@ -355,11 +365,12 @@ def getTransactionById(tId):
                                 }, 
                              200)
     except Exception as e:
-        return make_response({'error': {'error': e.__str__(),
-                                        'error_message': 'failure',
-                                        'error_code': "400"}
-                              }, 
-                             400)
+        db.session.rollback()
+        return make_response({'result': {'data': {},
+                                        'message': e.__str__(),
+                                        'code': '400'}
+                            }, 
+                            400)
 
 #Delete transaction by id
 @app.route('/transactions/delete/<tId>', methods=['DELETE'])
@@ -384,11 +395,16 @@ def deleteTransactionById(tId):
                                 }, 
                              200)
     except Exception as e:
-        return make_response({'error': {'error': e.__str__(),
-                                        'error_message': 'failure',
-                                        'error_code': "400"}
-                              }, 
-                             400)
+        db.session.rollback()
+        return make_response({'result': {'data': {},
+                                        'message': e.__str__(),
+                                        'code': '400'}
+                            }, 
+                            400)
+        
+        
+        
+          ################ IGNORE FROM BELOW ###########
         
 #Get products list
 @app.route('/products')
@@ -407,6 +423,7 @@ def getAllProducts(current_user):
         return make_response({'error': {'error': e.__str__(),
                                         'error_message': 'failure',
                                         'error_code': result.status_code}}, result.status_code)
+    
     
 #Get product by Id
 @app.route('/products/<product_id>')
