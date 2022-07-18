@@ -25,11 +25,13 @@ app.config['SECRET_KEY'] = 'thisisimportant'
 
 # Setup the Flask-JWT-Extended extension
 app.config["JWT_SECRET_KEY"] = "webCA1anditshouldbetopsecretcodethatcannotbeguessed"  # Change this!
+#app.config["JWT_ACCESS_TOKEN_EXPIRES"] =  datetime.datetime().utcnow() + datetime.timedelta(hours=1) #datetime.datetime.utcnow()+datetime.timedelta(days=30)
 jwt = JWTManager(app)
-#
+
+#SQLALCHEMY
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://b5b7e9d2945fc0:f06fdd58@us-cdbr-east-05.cleardb.net/heroku_744c5b8a948159b"
-pymysql.install_as_MySQLdb()
+app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://bbdfb1bb4fd8ab:8cb62b1c@us-cdbr-east-06.cleardb.net/heroku_88cf6b115b887e2"
+#pymysql.install_as_MySQLdb()
 db = SQLAlchemy(app) 
 ma = Marshmallow(app)
 
@@ -159,8 +161,8 @@ def login():
         get_user = UserTable.query.filter_by(email=email).one_or_none()
         if get_user:
             if check_password_hash(get_user.password, password):
-                token = create_access_token(identity=get_user)
-                refresh_token = create_refresh_token(identity=get_user, expires_delta=False)
+                token = create_access_token(identity=get_user, expires_delta=False)
+                refresh_token = create_refresh_token(identity=get_user)
                 #token = jwt.encode({'public_id':get_user.public_id,
                                    # 'exp': datetime.datetime.utcnow()+datetime.timedelta(days=30)}, 
                                    #app.config['SECRET_KEY'])
